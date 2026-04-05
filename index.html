@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Умножайка 🐴</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family:'Nunito',sans-serif;
+  background:linear-gradient(180deg,#87CEEB 0%,#bde0f5 50%,#7EC850 50%,#5cb85c 100%);
+  min-height:100vh; display:flex; flex-direction:column; align-items:center;
+  overflow-x:hidden; position:relative;
+}
+.sun { position:fixed; top:24px; right:50px; width:72px; height:72px;
+  background:radial-gradient(circle,#FFE566,#FFD93D); border-radius:50%;
+  box-shadow:0 0 0 14px #FFD93D33,0 0 60px #FFD93D99;
+  animation:sunP 3s ease-in-out infinite; z-index:0; }
+@keyframes sunP{0%,100%{box-shadow:0 0 0 10px #FFD93D33,0 0 40px #FFD93D77}50%{box-shadow:0 0 0 20px #FFD93D33,0 0 80px #FFD93Dbb}}
+.cloud{position:fixed;z-index:0;animation:drift linear infinite;pointer-events:none;}
+@keyframes drift{from{transform:translateX(-230px)}to{transform:translateX(110vw)}}
+.ground{position:fixed;bottom:0;left:0;right:0;height:110px;background:linear-gradient(180deg,#5cb85c,#4a9e4a);z-index:1;}
+.ground::before{content:'';position:absolute;top:-12px;left:0;right:0;height:22px;
+  background:repeating-linear-gradient(90deg,#6dcf6d 0,#6dcf6d 32px,#5cb85c 32px,#5cb85c 64px);border-radius:12px 12px 0 0;}
+
+#scene-canvas{position:fixed;bottom:68px;left:0;width:100%;height:160px;z-index:2;pointer-events:none;display:block;}
+
+.wrapper{position:relative;z-index:10;width:100%;max-width:500px;padding:16px 14px 0;margin-top:8px;}
+.screen{display:none;}
+.screen.active{display:block;animation:popIn 0.4s cubic-bezier(.34,1.56,.64,1);}
+@keyframes popIn{from{opacity:0;transform:scale(0.85) translateY(24px)}to{opacity:1;transform:scale(1) translateY(0)}}
+
+.panel{background:rgba(255,255,255,0.95);border-radius:28px;padding:22px 20px;
+box-shadow:0 14px 48px rgba(0,0,0,0.15),0 2px 0 rgba(255,255,255,0.8) inset;margin-bottom:12px;}
+
+/* COIN BAR */
+.coin-bar{display:flex;align-items:center;justify-content:flex-end;gap:6px;
+margin-bottom:10px;padding:0 4px;}
+.coin-display{background:rgba(255,255,255,0.95);border-radius:50px;padding:7px 16px;
+font-family:‘Fredoka One’,cursive;font-size:1.1rem;color:#e67e22;
+box-shadow:0 4px 14px rgba(0,0,0,0.12);display:flex;align-items:center;gap:6px;}
+.coin-display span{font-size:1.3rem;}
+
+.title{font-family:‘Fredoka One’,cursive;font-size:2.6rem;text-align:center;color:white;
+text-shadow:0 4px 0 rgba(0,0,0,0.12),0 10px 24px rgba(0,0,0,0.15);margin-bottom:4px;}
+.subtitle{text-align:center;color:rgba(255,255,255,0.88);font-size:0.9rem;font-weight:800;
+margin-bottom:16px;text-shadow:0 2px 6px rgba(0,0,0,0.12);}
+
+/* GAME TYPE SELECTOR */
+.type-lbl{font-size:0.7rem;font-weight:800;color:#bbb;text-transform:uppercase;letter-spacing:3px;text-align:center;margin-bottom:10px;}
+.type-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+.type-btn{border:3px solid #eee;border-radius:18px;padding:14px 8px;text-align:center;
+cursor:pointer;background:#fafafa;transition:all 0.2s;}
+.type-btn:hover{transform:translateY(-2px);}
+.type-btn .t-ico{font-size:2rem;display:block;margin-bottom:4px;}
+.type-btn .t-nm{font-family:‘Fredoka One’,cursive;font-size:1.1rem;display:block;color:#555;}
+.type-btn .t-ex{font-size:0.75rem;font-weight:800;color:#aaa;}
+.type-btn.sel-add{border-color:#3498db;background:#f0f7ff;box-shadow:0 4px 18px #3498db22;}
+.type-btn.sel-mul{border-color:#9b59b6;background:#fdf5ff;box-shadow:0 4px 18px #9b59b622;}
+
+.mode-lbl{font-size:0.7rem;font-weight:800;color:#bbb;text-transform:uppercase;letter-spacing:3px;text-align:center;margin-bottom:10px;}
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.mode-card{border:3px solid #eee;border-radius:18px;padding:16px 8px;text-align:center;
+cursor:pointer;background:#fafafa;transition:all 0.2s;}
+.mode-card:hover{transform:translateY(-2px);}
+.mode-card .ico{font-size:2.2rem;display:block;margin-bottom:4px;}
+.mode-card .nm{font-family:‘Fredoka One’,cursive;font-size:1.2rem;display:block;}
+.mode-card.easy .nm{color:#27ae60;}
+.mode-card.hard .nm{color:#e74c3c;}
+.mode-card .tm{font-size:0.75rem;font-weight:800;color:#aaa;}
+.mode-card.sel.easy{border-color:#27ae60;background:#f0fff6;box-shadow:0 4px 18px #27ae6022;}
+.mode-card.sel.hard{border-color:#e74c3c;background:#fff5f5;box-shadow:0 4px 18px #e74c3c22;}
+
+/* BOTTOM BUTTONS ROW */
+.start-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:stretch;}
+.btn-go{border:none;border-radius:50px;padding:15px;font-family:‘Fredoka One’,cursive;
+font-size:1.3rem;cursor:pointer;color:white;
+background:linear-gradient(135deg,#FFD93D,#FF6B6B);
+box-shadow:0 6px 24px rgba(255,107,107,0.45);transition:all 0.2s;letter-spacing:1px;}
+.btn-go:hover{transform:translateY(-3px);box-shadow:0 10px 30px rgba(255,107,107,0.5);}
+.btn-go:disabled{opacity:0.4;cursor:not-allowed;transform:none;}
+.btn-shop{border:none;border-radius:50px;padding:15px 18px;font-family:‘Fredoka One’,cursive;
+font-size:1.1rem;cursor:pointer;color:white;
+background:linear-gradient(135deg,#f39c12,#e67e22);
+box-shadow:0 6px 24px rgba(243,156,18,0.4);transition:all 0.2s;white-space:nowrap;}
+.btn-shop:hover{transform:translateY(-3px);}
+
+/* HUD */
+.hud{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.pill{background:rgba(255,255,255,0.95);border-radius:50px;padding:8px 18px;
+font-weight:800;font-size:0.9rem;color:#555;box-shadow:0 4px 14px rgba(0,0,0,0.12);}
+.pill b{font-family:‘Fredoka One’,cursive;font-size:1.2rem;color:#27ae60;}
+.pill .coin-icon{font-size:1rem;}
+.ring-wrap{position:relative;width:60px;height:60px;}
+.ring-wrap svg{transform:rotate(-90deg);}
+.r-bg{fill:none;stroke:#eee;stroke-width:6;}
+.r-arc{fill:none;stroke:#27ae60;stroke-width:6;stroke-linecap:round;stroke-dasharray:157;stroke-dashoffset:0;transition:stroke 0.3s;}
+.r-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+font-family:‘Fredoka One’,cursive;font-size:1.3rem;color:#333;}
+
+.q-panel{background:rgba(255,255,255,0.95);border-radius:28px;padding:24px 20px 18px;
+text-align:center;margin-bottom:12px;box-shadow:0 12px 40px rgba(0,0,0,0.13);}
+.q-hint{font-size:0.68rem;font-weight:800;color:#ccc;letter-spacing:3px;text-transform:uppercase;margin-bottom:6px;}
+.q-type-badge{display:inline-block;font-size:0.7rem;font-weight:800;padding:3px 10px;
+border-radius:50px;margin-bottom:8px;text-transform:uppercase;letter-spacing:2px;}
+.badge-add{background:#e8f4fd;color:#3498db;}
+.badge-mul{background:#f5e8fd;color:#9b59b6;}
+.question{font-family:‘Fredoka One’,cursive;font-size:3.8rem;color:#2c3e50;text-shadow:0 3px 0 rgba(0,0,0,0.06);}
+
+.answers{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;}
+.ans{background:rgba(255,255,255,0.95);border:3px solid #eee;border-radius:16px;
+padding:14px 4px;font-family:‘Fredoka One’,cursive;font-size:1.5rem;color:#2c3e50;
+cursor:pointer;transition:all 0.18s;box-shadow:0 4px 12px rgba(0,0,0,0.1);}
+.ans:hover:not(:disabled){transform:translateY(-4px);border-color:#bbb;box-shadow:0 8px 20px rgba(0,0,0,0.15);}
+.ans.ok{background:linear-gradient(135deg,#27ae60,#2ecc71);color:white;border-color:#27ae60;animation:bump 0.3s ease;}
+.ans.no{background:linear-gradient(135deg,#c0392b,#e74c3c);color:white;border-color:#c0392b;animation:shk 0.4s ease;}
+@keyframes bump{0%{transform:scale(1)}50%{transform:scale(1.13)}100%{transform:scale(1)}}
+@keyframes shk{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+
+/* END */
+.end-ico{font-size:4.5rem;text-align:center;margin:4px 0;animation:bncB 0.6s ease;}
+@keyframes bncB{0%{transform:scale(0)}70%{transform:scale(1.2)}100%{transform:scale(1)}}
+.end-h{font-family:‘Fredoka One’,cursive;font-size:2rem;text-align:center;color:#2c3e50;margin-bottom:4px;}
+.end-sub{text-align:center;color:#aaa;font-size:0.9rem;font-weight:700;margin-bottom:16px;}
+.earned-coins{background:linear-gradient(135deg,#fff8e1,#fff3cd);border:2px solid #f39c12;
+border-radius:16px;padding:12px;text-align:center;margin-bottom:16px;font-family:‘Fredoka One’,cursive;
+font-size:1.3rem;color:#e67e22;}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}
+.stat{background:#f7f7f7;border-radius:16px;padding:12px 6px;text-align:center;}
+.sv{font-family:‘Fredoka One’,cursive;font-size:2rem;color:#2c3e50;display:block;}
+.sl{font-size:0.68rem;font-weight:800;color:#bbb;text-transform:uppercase;letter-spacing:2px;}
+.btn-retry{width:100%;border:none;border-radius:50px;padding:14px;font-family:‘Fredoka One’,cursive;
+font-size:1.3rem;cursor:pointer;color:white;
+background:linear-gradient(135deg,#3498db,#9b59b6);
+box-shadow:0 6px 20px rgba(52,152,219,0.4);transition:all 0.2s;}
+.btn-retry:hover{transform:translateY(-3px);}
+
+/* FEEDBACK */
+#fb{position:fixed;z-index:50;pointer-events:none;font-family:‘Fredoka One’,cursive;font-size:2rem;
+top:35%;left:50%;transform:translateX(-50%);text-shadow:0 3px 10px rgba(0,0,0,0.2);display:none;}
+#fb.show{display:block;animation:fbF 0.9s ease forwards;}
+@keyframes fbF{0%{opacity:1;transform:translateX(-50%) translateY(0)}100%{opacity:0;transform:translateX(-50%) translateY(-70px)}}
+
+/* RETRY POPUP */
+#overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:98;backdrop-filter:blur(5px);}
+#retry-pop{display:none;position:fixed;top:50%;left:50%;
+transform:translate(-50%,-50%) scale(0.8);
+background:white;border-radius:28px;padding:32px 36px;text-align:center;z-index:99;
+box-shadow:0 24px 70px rgba(0,0,0,0.3);transition:transform 0.4s cubic-bezier(.34,1.56,.64,1);}
+#retry-pop.show{display:block;transform:translate(-50%,-50%) scale(1);}
+.rp-ico{font-size:4rem;}
+.rp-title{font-family:‘Fredoka One’,cursive;font-size:1.6rem;color:#e74c3c;margin:10px 0 6px;line-height:1.2;}
+.rp-btn{border:none;border-radius:50px;padding:13px 36px;font-family:‘Fredoka One’,cursive;
+font-size:1.2rem;cursor:pointer;color:white;
+background:linear-gradient(135deg,#3498db,#9b59b6);
+box-shadow:0 6px 20px rgba(52,152,219,0.4);transition:all 0.2s;}
+.rp-btn:hover{transform:translateY(-3px);}
+
+/* ===== SHOP ===== */
+#s-shop .shop-title{font-family:‘Fredoka One’,cursive;font-size:2rem;color:#2c3e50;text-align:center;margin-bottom:4px;}
+#s-shop .shop-sub{text-align:center;color:#aaa;font-size:0.85rem;font-weight:800;margin-bottom:16px;}
+.shop-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:14px;}
+.shop-item{background:#fafafa;border:3px solid #eee;border-radius:20px;padding:16px 10px;
+text-align:center;cursor:pointer;transition:all 0.2s;position:relative;}
+.shop-item:hover{transform:translateY(-3px);}
+.shop-item.owned{border-color:#27ae60;background:#f0fff6;}
+.shop-item.active-horse{border-color:#f39c12;background:#fff8e1;box-shadow:0 4px 18px #f39c1233;}
+.shop-item canvas{display:block;margin:0 auto 8px;}
+.shop-name{font-family:‘Fredoka One’,cursive;font-size:1rem;color:#2c3e50;display:block;margin-bottom:4px;}
+.shop-price{font-size:0.8rem;font-weight:800;color:#e67e22;display:flex;align-items:center;justify-content:center;gap:4px;}
+.shop-price.free{color:#27ae60;}
+.owned-badge{position:absolute;top:8px;right:8px;background:#27ae60;color:white;
+font-size:0.6rem;font-weight:800;padding:3px 7px;border-radius:50px;text-transform:uppercase;}
+.active-badge{position:absolute;top:8px;right:8px;background:#f39c12;color:white;
+font-size:0.6rem;font-weight:800;padding:3px 7px;border-radius:50px;text-transform:uppercase;}
+.btn-back{width:100%;border:none;border-radius:50px;padding:14px;font-family:‘Fredoka One’,cursive;
+font-size:1.2rem;cursor:pointer;color:white;
+background:linear-gradient(135deg,#95a5a6,#7f8c8d);
+box-shadow:0 6px 20px rgba(0,0,0,0.2);transition:all 0.2s;}
+.btn-back:hover{transform:translateY(-3px);}
+</style>
+
+</head>
+<body>
+
+<div class="sun"></div>
+<div class="cloud" style="top:28px;animation-duration:32s;animation-delay:-6s">
+  <svg width="140" height="65"><ellipse cx="70" cy="50" rx="65" ry="20" fill="white"/><ellipse cx="48" cy="40" rx="32" ry="24" fill="white"/><ellipse cx="82" cy="33" rx="38" ry="28" fill="white"/></svg>
+</div>
+<div class="cloud" style="top:72px;animation-duration:44s;animation-delay:-22s">
+  <svg width="100" height="50"><ellipse cx="50" cy="38" rx="44" ry="16" fill="white"/><ellipse cx="34" cy="30" rx="25" ry="20" fill="white"/><ellipse cx="64" cy="26" rx="28" ry="22" fill="white"/></svg>
+</div>
+<div class="cloud" style="top:14px;animation-duration:58s;animation-delay:-38s">
+  <svg width="80" height="42"><ellipse cx="40" cy="32" rx="36" ry="14" fill="white"/><ellipse cx="26" cy="24" rx="20" ry="17" fill="white"/><ellipse cx="55" cy="20" rx="23" ry="18" fill="white"/></svg>
+</div>
+<div class="ground"></div>
+<canvas id="scene-canvas"></canvas>
+
+<div id="fb"></div>
+<div id="overlay" onclick="hideRetry()"></div>
+<div id="retry-pop">
+  <div class="rp-ico">🐴💥</div>
+  <div class="rp-title">Начинай сначала!</div>
+  <button class="rp-btn" onclick="hideRetry()">Попробовать снова 🔄</button>
+</div>
+
+<div class="wrapper">
+
+  <!-- ===== START ===== -->
+
+  <div class="screen active" id="s-start">
+    <div class="coin-bar">
+      <div class="coin-display"><span>🪙</span><span id="coin-display-start">0</span></div>
+    </div>
+    <div class="title">🐴 Умножайка!</div>
+    <div class="subtitle">Помоги лошадке перепрыгнуть все 25 барьеров!</div>
+
+```
+<div class="panel">
+  <div class="type-lbl">Тип примеров</div>
+  <div class="type-btns">
+    <div class="type-btn" id="tb-add" onclick="pickType('add')">
+      <span class="t-ico">➕</span>
+      <span class="t-nm">Сложение</span>
+      <span class="t-ex">2 + 9 = ?</span>
+    </div>
+    <div class="type-btn" id="tb-mul" onclick="pickType('mul')">
+      <span class="t-ico">✖️</span>
+      <span class="t-nm">Умножение</span>
+      <span class="t-ex">3 × 7 = ?</span>
+    </div>
+  </div>
+
+  <div class="mode-lbl">Скорость</div>
+  <div class="modes">
+    <div class="mode-card easy" id="mc-easy" onclick="pickMode('easy')">
+      <span class="ico">🌿</span><span class="nm">Лёгкий</span><span class="tm">⏱ 10 секунд</span>
+    </div>
+    <div class="mode-card hard" id="mc-hard" onclick="pickMode('hard')">
+      <span class="ico">🔥</span><span class="nm">Сложный</span><span class="tm">⏱ 5 секунд</span>
+    </div>
+  </div>
+</div>
+
+<div class="start-row">
+  <button class="btn-go" id="btn-start" onclick="startGame()" disabled>Поехали! 🚀</button>
+  <button class="btn-shop" onclick="openShop()">🛍️ Магазин</button>
+</div>
+```
+
+  </div>
+
+  <!-- ===== GAME ===== -->
+
+  <div class="screen" id="s-game">
+    <div class="hud">
+      <div class="pill">⭐ <b id="score">0</b></div>
+      <div class="ring-wrap">
+        <svg width="60" height="60" viewBox="0 0 60 60">
+          <circle class="r-bg" cx="30" cy="30" r="25"/>
+          <circle class="r-arc" id="r-arc" cx="30" cy="30" r="25"/>
+        </svg>
+        <div class="r-num" id="r-num">10</div>
+      </div>
+      <div class="pill" id="prog">1 / 25</div>
+    </div>
+    <div class="q-panel">
+      <div class="q-hint">Сколько будет?</div>
+      <div id="q-badge" class="q-type-badge badge-mul">Умножение</div>
+      <div class="question" id="question">3 × 4 = ?</div>
+    </div>
+    <div class="answers" id="answers"></div>
+  </div>
+
+  <!-- ===== END ===== -->
+
+  <div class="screen" id="s-end">
+    <div class="panel">
+      <div class="end-ico" id="end-ico">🏆</div>
+      <div class="end-h" id="end-h">Молодец!</div>
+      <div class="end-sub" id="end-sub">Ты прошла весь маршрут!</div>
+      <div class="earned-coins" id="earned-coins">+0 🪙 монеток заработано!</div>
+      <div class="stats">
+        <div class="stat"><span class="sv" id="st-ok">0</span><span class="sl">Верно</span></div>
+        <div class="stat"><span class="sv" id="st-no">0</span><span class="sl">Ошибки</span></div>
+        <div class="stat"><span class="sv" id="st-sc">0</span><span class="sl">Очков</span></div>
+      </div>
+      <button class="btn-retry" onclick="goStart()">Играть снова 🔄</button>
+    </div>
+  </div>
+
+  <!-- ===== SHOP ===== -->
+
+  <div class="screen" id="s-shop">
+    <div class="panel">
+      <div class="shop-title">🛍️ Магазин</div>
+      <div class="shop-sub">Выбери свою лошадку!</div>
+      <div class="coin-display" style="justify-content:center;margin-bottom:16px;">
+        <span>🪙</span><span id="coin-display-shop">0</span> монеток
+      </div>
+      <div class="shop-grid" id="shop-grid"></div>
+      <button class="btn-back" onclick="goStart()">← Назад</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ============================================================
+// SAVE DATA
+// ============================================================
+function loadSave() {
+  try {
+    const d = JSON.parse(localStorage.getItem('horseGame') || '{}');
+    return { coins: d.coins||0, owned: d.owned||['brown'], active: d.active||'brown' };
+  } catch(e) { return { coins:0, owned:['brown'], active:'brown' }; }
+}
+function save() {
+  localStorage.setItem('horseGame', JSON.stringify(SAVE));
+}
+const SAVE = loadSave();
+
+// ============================================================
+// HORSE SKINS
+// ============================================================
+const SKINS = [
+  { id:'brown',    name:'Каштанка',  price:0,   body:'#C8906A', mane:'#7A4E2D', saddle:'#7B2000', snout:'#B07850', ear:'#B07850' },
+  { id:'white',    name:'Белоснежка',price:120, body:'#F0EDE8', mane:'#D0C8B8', saddle:'#8B6914', snout:'#E8D8C8', ear:'#E0D0C0' },
+  { id:'gray',     name:'Серая',     price:120, body:'#9E9E9E', mane:'#616161', saddle:'#37474F', snout:'#BDBDBD', ear:'#BDBDBD' },
+  { id:'black',    name:'Вороная',   price:150, body:'#424242', mane:'#212121', saddle:'#B71C1C', snout:'#616161', ear:'#525252' },
+  { id:'tricolor', name:'Пятнистая', price:200, body:'#C8906A', mane:'#7A4E2D', saddle:'#5D4037', snout:'#B07850', ear:'#B07850', spots:true },
+  { id:'golden',   name:'Золотая ✨',price:300, body:'#D4A017', mane:'#8B6914', saddle:'#7B2000', snout:'#C49010', ear:'#C49010' },
+];
+
+function activeSkin() { return SKINS.find(s=>s.id===SAVE.active)||SKINS[0]; }
+
+// ============================================================
+// CANVAS HORSE ENGINE
+// ============================================================
+const canvas = document.getElementById('scene-canvas');
+const ctx = canvas.getContext('2d');
+function resizeCanvas() { canvas.width=window.innerWidth; canvas.height=160; }
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+const H = {
+  x:130, gnd:125, y:125,
+  phase:0, state:'idle',
+  jumpT:0, fallAngle:0,
+  bx:-999, bState:'hidden', bAngle:0,
+  dust:[],_resolveBarrier:null
+};
+
+function spawnDust() {
+  for(let i=0;i<4;i++) H.dust.push({
+    x:H.x-15+Math.random()*30, y:H.gnd,
+    vx:-0.8-Math.random()*2, vy:-0.8-Math.random()*2,
+    life:1, r:3+Math.random()*5
+  });
+}
+
+// ---- DRAW HORSE ----
+function drawHorse(x, y, phase, state, fallAngle, skin) {
+  ctx.save();
+  ctx.translate(x, y);
+  if(state==='fall'||state==='fallen') ctx.rotate(fallAngle);
+
+  const bob = state==='run' ? Math.sin(phase*2)*2.5 : Math.sin(phase)*1.5;
+  const bY = -bob;
+
+  // tail
+  const tw = Math.sin(phase*1.5)*10;
+  ctx.save(); ctx.translate(-42,bY-18);
+  ctx.strokeStyle=skin.mane; ctx.lineWidth=5; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(0,0);
+  ctx.bezierCurveTo(-18,10+tw,-22,30+tw,-12,45+tw*0.5);
+  ctx.stroke(); ctx.restore();
+
+  // body
+  ctx.fillStyle=skin.body;
+  ctx.beginPath(); ctx.ellipse(0,bY-22,42,24,0,0,Math.PI*2); ctx.fill();
+
+  // spots for tricolor
+  if(skin.spots) {
+    ctx.fillStyle='white'; ctx.globalAlpha=0.5;
+    ctx.beginPath(); ctx.ellipse(-10,bY-28,14,10,0.3,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(14,bY-16,10,8,-0.2,0,Math.PI*2); ctx.fill();
+    ctx.globalAlpha=1;
+  }
+
+  // belly highlight
+  ctx.fillStyle=skin.snout; ctx.globalAlpha=0.4;
+  ctx.beginPath(); ctx.ellipse(5,bY-14,28,12,0,0,Math.PI*2); ctx.fill();
+  ctx.globalAlpha=1;
+
+  // saddle
+  ctx.fillStyle=skin.saddle; ctx.globalAlpha=0.85;
+  ctx.beginPath(); ctx.ellipse(-2,bY-32,22,9,0,0,Math.PI*2); ctx.fill();
+  ctx.globalAlpha=0.5;
+  ctx.fillStyle='rgba(255,255,255,0.3)';
+  ctx.beginPath(); ctx.ellipse(-2,bY-34,14,5,0,0,Math.PI*2); ctx.fill();
+  ctx.globalAlpha=1;
+
+  // neck
+  ctx.fillStyle=skin.body;
+  ctx.save(); ctx.translate(32,bY-32); ctx.rotate(-0.3);
+  ctx.beginPath(); ctx.ellipse(0,0,14,22,0,0,Math.PI*2); ctx.fill(); ctx.restore();
+
+  // mane
+  const mp=Math.sin(phase*1.2)*5;
+  ctx.strokeStyle=skin.mane; ctx.lineWidth=5; ctx.lineCap='round';
+  for(let i=0;i<4;i++){
+    const ox=28+i*3, oy=bY-50+i*2;
+    ctx.beginPath(); ctx.moveTo(ox,oy);
+    ctx.bezierCurveTo(ox-8+mp,oy+10,ox-10+mp,oy+20,ox-6,oy+30); ctx.stroke();
+  }
+
+  // head
+  ctx.fillStyle=skin.body;
+  ctx.save(); ctx.translate(46,bY-50); ctx.rotate(-0.4);
+  ctx.beginPath(); ctx.ellipse(0,0,16,12,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle=skin.snout;
+  ctx.beginPath(); ctx.ellipse(13,4,9,7,0.2,0,Math.PI*2); ctx.fill();
+  // nostril
+  ctx.fillStyle=skin.id==='white'?'#c0a898':'#8B5030';
+  ctx.beginPath(); ctx.ellipse(18,5,3,2,0,0,Math.PI*2); ctx.fill();
+  // eye
+  ctx.fillStyle='#1a1a2e'; ctx.beginPath(); ctx.arc(4,-4,4,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='white'; ctx.beginPath(); ctx.arc(5,-5,1.5,0,Math.PI*2); ctx.fill();
+  // pupil shine
+  ctx.fillStyle='#87CEEB'; ctx.globalAlpha=0.5;
+  ctx.beginPath(); ctx.arc(6,-3,1,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+  // ear
+  ctx.fillStyle=skin.ear;
+  ctx.beginPath(); ctx.moveTo(-4,-10); ctx.lineTo(2,-22); ctx.lineTo(9,-10); ctx.fill();
+  ctx.fillStyle='#ffb8a8'; ctx.globalAlpha=0.6;
+  ctx.beginPath(); ctx.moveTo(-1,-11); ctx.lineTo(2,-18); ctx.lineTo(7,-11); ctx.fill();
+  ctx.globalAlpha=1;
+  ctx.restore();
+
+  // legs
+  const legPhases=[phase,phase+Math.PI,phase+Math.PI*0.5,phase+Math.PI*1.5];
+  const legXs=[20,30,-18,-8];
+  const lc1=skin.body, lc2=skin.snout;
+
+  legXs.forEach((lx,i)=>{
+    const lp=legPhases[i];
+    const swing=state==='run'?Math.sin(lp)*18:0;
+    const lift=state==='run'?Math.max(0,-Math.sin(lp))*14:0;
+    const topX=lx, topY=bY-2;
+    const knee={x:topX+swing*0.4, y:topY+22-lift*0.5};
+    const hoof={x:topX+swing, y:topY+44-lift};
+    ctx.strokeStyle=i%2===0?lc1:lc2;
+    ctx.lineWidth=10; ctx.lineCap='round'; ctx.lineJoin='round';
+    ctx.beginPath(); ctx.moveTo(topX,topY); ctx.lineTo(knee.x,knee.y); ctx.lineTo(hoof.x,hoof.y); ctx.stroke();
+    ctx.fillStyle='#1a1a2e';
+    ctx.beginPath(); ctx.ellipse(hoof.x,hoof.y+3,6,4,0,0,Math.PI*2); ctx.fill();
+  });
+
+  // golden sparkles
+  if(skin.id==='golden' && state==='run') {
+    const sp=Math.sin(phase*3);
+    ctx.fillStyle='#FFD700'; ctx.globalAlpha=0.8;
+    ctx.beginPath(); ctx.arc(H.x-60+sp*5,-10,3,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(H.x-80,-20+sp*4,2,0,Math.PI*2); ctx.fill();
+    ctx.globalAlpha=1;
+  }
+
+  ctx.restore();
+}
+
+// Mini horse for shop previews
+function drawMiniHorse(miniCtx, skin) {
+  miniCtx.save();
+  miniCtx.translate(50, 65);
+  miniCtx.scale(0.55, 0.55);
+  drawHorseOnCtx(miniCtx, 0, 0, 0, 'idle', 0, skin);
+  miniCtx.restore();
+}
+
+function drawHorseOnCtx(c, x, y, phase, state, fallAngle, skin) {
+  const prevCtx = ctx;
+  // We'll just use main draw fn but swap ctx temporarily
+  const bY = 0;
+  c.save(); c.translate(x,y);
+  c.fillStyle=skin.body; c.beginPath(); c.ellipse(0,bY-22,42,24,0,0,Math.PI*2); c.fill();
+  if(skin.spots){c.fillStyle='white';c.globalAlpha=0.5;c.beginPath();c.ellipse(-10,bY-28,14,10,0.3,0,Math.PI*2);c.fill();c.beginPath();c.ellipse(14,bY-16,10,8,-0.2,0,Math.PI*2);c.fill();c.globalAlpha=1;}
+  c.fillStyle=skin.saddle;c.globalAlpha=0.85;c.beginPath();c.ellipse(-2,bY-32,22,9,0,0,Math.PI*2);c.fill();c.globalAlpha=1;
+  c.fillStyle=skin.body;c.save();c.translate(32,bY-32);c.rotate(-0.3);c.beginPath();c.ellipse(0,0,14,22,0,0,Math.PI*2);c.fill();c.restore();
+  c.strokeStyle=skin.mane;c.lineWidth=5;c.lineCap='round';
+  for(let i=0;i<3;i++){const ox=28+i*3,oy=bY-50+i*2;c.beginPath();c.moveTo(ox,oy);c.bezierCurveTo(ox-8,oy+10,ox-10,oy+20,ox-6,oy+30);c.stroke();}
+  c.fillStyle=skin.body;c.save();c.translate(46,bY-50);c.rotate(-0.4);c.beginPath();c.ellipse(0,0,16,12,0,0,Math.PI*2);c.fill();
+  c.fillStyle=skin.snout;c.beginPath();c.ellipse(13,4,9,7,0.2,0,Math.PI*2);c.fill();
+  c.fillStyle='#1a1a2e';c.beginPath();c.arc(4,-4,4,0,Math.PI*2);c.fill();
+  c.fillStyle='white';c.beginPath();c.arc(5,-5,1.5,0,Math.PI*2);c.fill();
+  c.fillStyle=skin.ear;c.beginPath();c.moveTo(-4,-10);c.lineTo(2,-22);c.lineTo(9,-10);c.fill();
+  c.restore();
+  [-18,-8,20,30].forEach((lx,i)=>{
+    c.strokeStyle=i%2===0?skin.body:skin.snout;c.lineWidth=10;c.lineCap='round';
+    c.beginPath();c.moveTo(lx,bY-2);c.lineTo(lx,bY+22);c.lineTo(lx,bY+44);c.stroke();
+    c.fillStyle='#1a1a2e';c.beginPath();c.ellipse(lx,bY+47,6,4,0,0,Math.PI*2);c.fill();
+  });
+  // tail
+  c.strokeStyle=skin.mane;c.lineWidth=5;c.lineCap='round';
+  c.beginPath();c.moveTo(-42,bY-18);c.bezierCurveTo(-60,-8,-64,12,-54,27);c.stroke();
+  c.restore();
+}
+
+// ---- BARRIER ----
+function drawBarrier(x, y, angle) {
+  ctx.save(); ctx.translate(x,y); ctx.rotate(angle);
+  const pH=38, pW=8;
+  ctx.fillStyle='#8B6914';
+  ctx.beginPath(); ctx.roundRect(-40,-pH,pW,pH,3); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(32,-pH,pW,pH,3); ctx.fill();
+  ctx.fillStyle='#6B4A10';
+  ctx.beginPath(); ctx.roundRect(-43,-pH-7,14,9,3); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(29,-pH-7,14,9,3); ctx.fill();
+  const b1=-pH*0.78;
+  ctx.fillStyle='#e74c3c'; ctx.beginPath(); ctx.roundRect(-40,b1,80,10,4); ctx.fill();
+  ctx.fillStyle='#ff8080'; ctx.fillRect(-37,b1+2,74,3);
+  const b2=-pH*0.40;
+  ctx.fillStyle='#e74c3c'; ctx.beginPath(); ctx.roundRect(-40,b2,80,10,4); ctx.fill();
+  ctx.fillStyle='#ff8080'; ctx.fillRect(-37,b2+2,74,3);
+  ctx.restore();
+}
+
+// ---- DUST ----
+function drawDust() {
+  H.dust.forEach(p=>{
+    ctx.globalAlpha=p.life*0.45; ctx.fillStyle='#c8a96e';
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r*p.life,0,Math.PI*2); ctx.fill();
+    p.x+=p.vx; p.y+=p.vy; p.life-=0.045; p.r*=0.97;
+  });
+  ctx.globalAlpha=1;
+  H.dust=H.dust.filter(p=>p.life>0);
+}
+
+// ---- LOOP ----
+let raf=null;
+function loop() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if(H.state==='run'||H.state==='jump') H.phase+=0.22;
+  else H.phase+=0.04;
+  if(H.state==='run'&&Math.random()<0.3) spawnDust();
+  drawDust();
+
+  // barrier
+  if(H.bState==='sliding'){
+    H.bx-=4;
+    if(H.bx<H.x+55 && H._resolveBarrier){H._resolveBarrier();H._resolveBarrier=null;}
+    drawBarrier(H.bx,H.gnd,0);
+  } else if(H.bState==='broken'){
+    H.bAngle+=0.04;
+    ctx.globalAlpha=Math.max(0,1-H.bAngle*2);
+    drawBarrier(H.bx,H.gnd+H.bAngle*40,H.bAngle);
+    ctx.globalAlpha=1;
+  } else if(H.bState==='jumped'){
+    H.bx-=3; drawBarrier(H.bx,H.gnd,0);
+  }
+
+  // jump arc
+  if(H.state==='jump'){
+    H.jumpT+=0.028;
+    H.y=H.gnd-Math.sin(H.jumpT*Math.PI)*72;
+    if(H.jumpT>=1){H.y=H.gnd;H.state='run';H.bState='jumped';}
+  }
+  if(H.state==='fall'){
+    H.fallAngle+=0.055; H.y=Math.min(H.gnd+10,H.y+1);
+    if(H.fallAngle>=0.9) H.state='fallen';
+  }
+
+  const skin=activeSkin();
+  drawHorse(H.x, H.state==='idle'?H.gnd:H.y, H.phase, H.state, H.fallAngle, skin);
+  raf=requestAnimationFrame(loop);
+}
+function startLoop(){if(!raf)raf=requestAnimationFrame(loop);}
+function stopLoop(){if(raf){cancelAnimationFrame(raf);raf=null;}}
+
+function resetHorse(){
+  H.state='idle';H.y=H.gnd;H.phase=0;H.jumpT=0;H.fallAngle=0;
+  H.bx=-999;H.bState='hidden';H.bAngle=0;H.dust=[];H._resolveBarrier=null;
+  startLoop();
+}
+function horseRun(){H.state='run';}
+function spawnBarrier(){
+  H.bx=canvas.width+50; H.bState='sliding';
+  return new Promise(r=>{H._resolveBarrier=r;});
+}
+function horseJump(){H.state='jump';H.jumpT=0;}
+function horseFall(){H.state='fall';H.fallAngle=0;H.bState='broken';}
+
+// ============================================================
+// SHOP
+// ============================================================
+function openShop(){
+  renderShopGrid();
+  updateCoinDisplays();
+  show('s-shop');
+}
+
+function renderShopGrid(){
+  const grid=document.getElementById('shop-grid');
+  grid.innerHTML='';
+  SKINS.forEach(skin=>{
+    const owned=SAVE.owned.includes(skin.id);
+    const isActive=SAVE.active===skin.id;
+    const div=document.createElement('div');
+    div.className='shop-item'+(owned?' owned':'')+(isActive?' active-horse':'');
+
+    const c=document.createElement('canvas');
+    c.width=100;c.height=80;
+    const mc=c.getContext('2d');
+    // draw mini horse
+    mc.save();mc.translate(50,72);mc.scale(0.55,0.55);
+    drawHorseOnCtx(mc,0,0,0,'idle',0,skin);
+    mc.restore();
+
+    const badge=document.createElement('div');
+    if(isActive){badge.className='active-badge';badge.textContent='Активна';}
+    else if(owned){badge.className='owned-badge';badge.textContent='Есть';}
+
+    const name=document.createElement('span');name.className='shop-name';name.textContent=skin.name;
+    const price=document.createElement('div');price.className='shop-price'+(skin.price===0||owned?' free':'');
+
+    if(isActive){price.textContent='✅ Выбрана';}
+    else if(owned){price.innerHTML='<span onclick="selectHorse(\''+skin.id+'\')">👆 Выбрать</span>';}
+    else{price.innerHTML='🪙 '+skin.price;}
+
+    div.appendChild(badge);div.appendChild(c);div.appendChild(name);div.appendChild(price);
+    if(!owned&&skin.price>0){
+      div.onclick=()=>buyHorse(skin.id);
+    } else if(owned&&!isActive){
+      div.onclick=()=>selectHorse(skin.id);
+    }
+    grid.appendChild(div);
+  });
+}
+
+function buyHorse(id){
+  const skin=SKINS.find(s=>s.id===id);
+  if(!skin||SAVE.owned.includes(id)) return;
+  if(SAVE.coins<skin.price){flash('Нет монеток! 🪙','#e74c3c');return;}
+  SAVE.coins-=skin.price;
+  SAVE.owned.push(id);
+  SAVE.active=id;
+  save();
+  updateCoinDisplays();
+  renderShopGrid();
+  flash('Куплено! 🎉','#27ae60');
+}
+
+function selectHorse(id){
+  SAVE.active=id; save();
+  renderShopGrid();
+}
+
+// ============================================================
+// GAME LOGIC
+// ============================================================
+let gameType='mul', mode=null, limit=10;
+let questions=[], qi=0, score=0, okC=0, noC=0;
+let timerInt=null, tLeft=0;
+const TOTAL=25;
+
+function pickType(t){
+  gameType=t;
+  document.getElementById('tb-add').className='type-btn'+(t==='add'?' sel-add':'');
+  document.getElementById('tb-mul').className='type-btn'+(t==='mul'?' sel-mul':'');
+  checkCanStart();
+}
+function pickMode(m){
+  mode=m; limit=m==='easy'?10:5;
+  document.getElementById('mc-easy').classList.toggle('sel',m==='easy');
+  document.getElementById('mc-hard').classList.toggle('sel',m==='hard');
+  checkCanStart();
+}
+function checkCanStart(){
+  document.getElementById('btn-start').disabled=!(mode&&gameType);
+}
+
+function makeQuestions(){
+  const pool=[];
+  if(gameType==='add'){
+    for(let a=1;a<=9;a++) for(let b=1;b<=9;b++) pool.push([a,b,'+']);
+  } else {
+    for(let a=2;a<=9;a++) for(let b=2;b<=9;b++) pool.push([a,b,'×']);
+  }
+  shuffle(pool); return pool.slice(0,TOTAL);
+}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}}
+
+function makeAnswers(a,b,op){
+  const c=op==='+'?a+b:a*b;
+  const s=new Set([c]);
+  while(s.size<5){const v=c+Math.floor(Math.random()*20)-10;if(v>0)s.add(v);}
+  return [...s].sort(()=>Math.random()-0.5);
+}
+
+async function startGame(){
+  questions=makeQuestions();
+  qi=0;score=0;okC=0;noC=0;
+  show('s-game');
+  // badge
+  const badge=document.getElementById('q-badge');
+  if(gameType==='add'){badge.textContent='Сложение';badge.className='q-type-badge badge-add';}
+  else{badge.textContent='Умножение';badge.className='q-type-badge badge-mul';}
+  resetHorse();horseRun();
+  await nextQ();
+}
+
+async function nextQ(){
+  if(qi>=TOTAL){endGame();return;}
+  const [a,b,op]=questions[qi];
+  const correct=op==='+'?a+b:a*b;
+  document.getElementById('question').textContent=`${a} ${op} ${b} = ?`;
+  document.getElementById('score').textContent=score;
+  document.getElementById('prog').textContent=`${qi+1} / ${TOTAL}`;
+  const box=document.getElementById('answers');
+  box.innerHTML='';
+  makeAnswers(a,b,op).forEach(v=>{
+    const btn=document.createElement('button');
+    btn.className='ans';btn.textContent=v;
+    btn.onclick=()=>check(v,correct,btn);
+    box.appendChild(btn);
+  });
+  startTimer(correct);
+}
+
+function startTimer(correct){
+  clearInterval(timerInt);tLeft=limit;updateRing();
+  timerInt=setInterval(()=>{
+    tLeft-=0.1;updateRing();
+    if(tLeft<=0){clearInterval(timerInt);onWrong(null,correct);}
+  },100);
+}
+function updateRing(){
+  const pct=Math.max(0,tLeft/limit);
+  document.getElementById('r-arc').style.strokeDashoffset=157*(1-pct);
+  document.getElementById('r-num').textContent=Math.ceil(tLeft);
+  document.getElementById('r-arc').style.stroke=pct>0.5?'#27ae60':pct>0.25?'#f39c12':'#e74c3c';
+}
+
+async function check(val,correct,btn){
+  clearInterval(timerInt);lockAnswers();
+  if(val===correct){
+    btn.classList.add('ok');
+    score+=Math.max(10,Math.ceil(tLeft*12));
+    okC++;
+    flash('✅ Верно!','#27ae60');
+    const arrived=spawnBarrier();
+    arrived.then(()=>horseJump());
+    await sleep(1400);
+    qi++;await nextQ();
+  } else {
+    btn.classList.add('no');
+    onWrong(btn,correct);
+  }
+}
+
+async function onWrong(btn,correct){
+  lockAnswers();noC++;
+  flash('❌ Ошибка!','#e74c3c');
+  document.querySelectorAll('.ans').forEach(b=>{if(parseInt(b.textContent)===correct)b.classList.add('ok');});
+  const arrived=spawnBarrier();
+  arrived.then(()=>horseFall());
+  await sleep(1200);
+  showRetry();
+}
+
+function lockAnswers(){document.querySelectorAll('.ans').forEach(b=>{b.onclick=null;b.disabled=true;});}
+
+function flash(txt,col){
+  const el=document.getElementById('fb');
+  el.textContent=txt;el.style.color=col;el.className='';
+  void el.offsetWidth;el.className='show';
+}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+
+function showRetry(){
+  document.getElementById('overlay').style.display='block';
+  const p=document.getElementById('retry-pop');p.style.display='block';
+  requestAnimationFrame(()=>p.classList.add('show'));
+}
+function hideRetry(){
+  document.getElementById('overlay').style.display='none';
+  const p=document.getElementById('retry-pop');p.classList.remove('show');
+  setTimeout(()=>{p.style.display='none';goStart();},300);
+}
+
+function endGame(){
+  clearInterval(timerInt);stopLoop();
+  // award coins: 1 coin per correct answer + bonus
+  const earned=okC+Math.floor(score/50);
+  SAVE.coins+=earned; save();
+  updateCoinDisplays();
+
+  const pct=okC/TOTAL;
+  let ico='🏆',h='Невероятно!',sub='Ты настоящий чемпион! 🎉';
+  if(pct<0.5){ico='😅';h='Старайся!';sub='Потренируйся ещё немного!';}
+  else if(pct<0.8){ico='👍';h='Хорошо!';sub='Ещё чуть-чуть до победы!';}
+  document.getElementById('end-ico').textContent=ico;
+  document.getElementById('end-h').textContent=h;
+  document.getElementById('end-sub').textContent=sub;
+  document.getElementById('earned-coins').textContent=`+${earned} 🪙 монеток заработано!`;
+  document.getElementById('st-ok').textContent=okC;
+  document.getElementById('st-no').textContent=noC;
+  document.getElementById('st-sc').textContent=score;
+  show('s-end');
+}
+
+function goStart(){
+  clearInterval(timerInt);stopLoop();
+  mode=null;gameType='mul';
+  document.getElementById('mc-easy').classList.remove('sel');
+  document.getElementById('mc-hard').classList.remove('sel');
+  document.getElementById('tb-add').className='type-btn';
+  document.getElementById('tb-mul').className='type-btn';
+  document.getElementById('btn-start').disabled=true;
+  updateCoinDisplays();
+  show('s-start');
+  resetHorse();
+}
+
+function updateCoinDisplays(){
+  document.getElementById('coin-display-start').textContent=SAVE.coins;
+  document.getElementById('coin-display-shop').textContent=SAVE.coins;
+}
+
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// INIT
+updateCoinDisplays();
+resetHorse();
+</script>
+
+</body>
+</html>
